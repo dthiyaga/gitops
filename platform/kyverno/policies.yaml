@@ -1,0 +1,63 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-pod-requests-limits
+  annotations: { argocd.argoproj.io/sync-wave: "31" }
+spec:
+  validationFailureAction: audit
+  background: true
+  rules:
+  - name: require-resources
+    match: { resources: { kinds: ["Pod"] } }
+    validate:
+      message: "CPU and memory requests/limits are required."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              requests:
+                memory: "?*"
+                cpu: "?*"
+              limits:
+                memory: "?*"
+                cpu: "?*"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privilege-escalation
+  annotations: { argocd.argoproj.io/sync-wave: "31" }
+spec:
+  validationFailureAction: audit
+  background: true
+  rules:
+  - name: no-priv-esc
+    match: { resources: { kinds: ["Pod"] } }
+    validate:
+      message: "Privilege escalation is not allowed."
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              allowPrivilegeEscalation: false
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations: { argocd.argoproj.io/sync-wave: "31" }
+spec:
+  validationFailureAction: audit
+  background: true
+  rules:
+  - name: no-latest
+    match: { resources: { kinds: ["Pod"] } }
+    validate:
+      message: "Avoid using the 'latest' tag."
+      deny:
+        conditions:
+          all:
+          - key: "{{ images.containers[?(@.tag == 'latest')] | length(@) }}"
+            operator: GreaterThan
+            value: 0
+

@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: datadog
+  namespace: platform-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: datadog
+  source:
+    repoURL: https://helm.datadoghq.com
+    chart: datadog
+    targetRevision: 3.83.8
+    helm:
+      values: |
+        datadog:
+          site: datadoghq.com
+          apiKeyExistingSecret: datadog-api-key
+          tags:
+            - env:dev
+            - app:artifactory-lab
+          logs:
+            enabled: true
+            containerCollectAll: true
+          apm:
+            enabled: true
+            analyzeSpans: true
+          processAgent:
+            enabled: true
+          kubeStateMetricsEnabled: true
+          kubelet:
+            tlsVerify: false
+        agents:
+          containers:
+            traceAgent:
+              env:
+                - name: DD_APM_NON_LOCAL_TRAFFIC
+                  value: "true"
+        clusterAgent:
+          enabled: true
+          metricsProvider:
+            enabled: true
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+
